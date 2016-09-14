@@ -3,6 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <title></title>
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #f0f0f0;
+            margin: 0px;
+            overflow: hidden;
+        }
+        #ui {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: black;
+            opacity: 0.8;
+            color: white;
+            z-index: 1;
+        }
+
+        #ui button,input{
+            margin-bottom : 5px;
+        }
+
+    </style>
     <script src="utils.js"></script>
     <script src="https://code.jquery.com/jquery-2.2.4.js"
             integrity="sha256-iT6Q9iMJYuQiMWNd9lDyBUStIq/8PuOW33aOqmvFpqI="
@@ -16,6 +38,7 @@
 
     <script>
         var world = {
+            container : null,
             scene: null,
             lights: [],
             camera: null,
@@ -24,12 +47,25 @@
             mouse: null,
             rotate: false
         };
+
+        var ui = {
+            scene : null,
+            lights: [],
+            camera: null,
+            renderer: null
+        };
+
         var Yaw_Servo = null;
-        var Roll_Servo = null;
+        var Pitch_Servo = null;
         var irSensor = null;
         var reference = null; //reference point of scanner distance
         var scanLine = null;
+
         var testObject = null; //object to scan
+        var ui_testObject = null;
+
+        var scanPoints = [];
+        var ui_scanPoints = [];
 
         var theta = 0;
         var phi = 0;
@@ -137,7 +173,7 @@
             });
         }
 
-        function addRollServo(callback) {
+        function addPitchServo(callback) {
             var loader = new THREE.STLLoader();
             loader.load('Servo.STL', function (g) {
                 var m = new THREE.MeshPhongMaterial({
@@ -160,17 +196,17 @@
         }
 
         function allLoaded() {
-            if (irSensor != null && Yaw_Servo != null && Roll_Servo != null) {
+            if (irSensor != null && Yaw_Servo != null && Pitch_Servo != null) {
                 console.log("ALL LOADED !!!");
 
                 Yaw_Servo.rotation.set(d2r(-90), 0, 0);
                 Yaw_Servo.wrapper = new THREE.Object3D(); //"pan" servo
                 Yaw_Servo.wrapper.add(Yaw_Servo);
 
-                Roll_Servo.position.set(0.0, 0, -1.6 / 2);
-                Roll_Servo.wrapper = new THREE.Object3D();
-                Roll_Servo.wrapper.position.set(0.5, 1.6 + (0.78 / 2) + (0.5), 0);
-                Roll_Servo.wrapper.add(Roll_Servo);
+                Pitch_Servo.position.set(0.0, 0, -1.6 / 2);
+                Pitch_Servo.wrapper = new THREE.Object3D();
+                Pitch_Servo.wrapper.position.set(0.5, 1.6 + (0.78 / 2) + (0.5), 0);
+                Pitch_Servo.wrapper.add(Pitch_Servo);
 
 
                 irSensor.rotation.set(0.0, d2r(90), 0.0);
@@ -179,15 +215,15 @@
                 irSensor.wrapper.add(irSensor);
 
                 reference = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0x000000}));
-                reference.position.set(1.0, 0.0, 0.0);
+                reference.position.set(0.0, 0.0, 1.0);
                 irSensor.add(reference);
 
-                Roll_Servo.wrapper.add(irSensor.wrapper);
+                Pitch_Servo.wrapper.add(irSensor.wrapper);
 
-                Yaw_Servo.wrapper.add(Roll_Servo.wrapper);
+                Yaw_Servo.wrapper.add(Pitch_Servo.wrapper);
 
                 //world.scene.add(irSensor);
-                //world.scene.add(Roll_Servo);
+                //world.scene.add(Pitch_Servo);
                 world.scene.add(Yaw_Servo.wrapper);
 
                 //start
@@ -195,61 +231,95 @@
             }
         }
 
-        $(document).ready(function () {
-
-            world.scene = new THREE.Scene();
+        function addEnvironment(root){
+            root.scene = new THREE.Scene();
 
             // lights
-            world.scene.add(new THREE.AmbientLight(0xeeeeee, 0.1));
+            root.scene.add(new THREE.AmbientLight(0xeeeeee, 0.1));
 
             var light = new THREE.DirectionalLight(0xffffff, 0.3);
             light.position.set(1, 1, 1).normalize();
-            world.scene.add(light);
+            root.scene.add(light);
 
             //addPointer(0,10,-10);
 
             light = new THREE.PointLight(0xffffff, 0.7, 100);
             light.position.set(0, 10, -10);
-            world.scene.add(light);
+            root.scene.add(light);
 
             // axes
             var origin = new THREE.Vector3(0, 0, 0);
             var axes = buildAxes(origin, 100);
-            world.scene.add(axes);
+            root.scene.add(axes);
 
             // camera
-            world.camera = buildCamera(world.scene);
-            world.camera.update();
+            root.camera = buildCamera(root.scene);
+            root.camera.update();
 
             // renderer
-            world.renderer = new THREE.WebGLRenderer();
-            world.renderer.setClearColor(0xf0f0f0);
-            world.renderer.setPixelRatio(window.devicePixelRatio);
-            world.renderer.setSize(window.innerWidth, window.innerHeight);
-            world.renderer.sortObjects = false;
+            root.renderer = new THREE.WebGLRenderer();
+            root.renderer.setClearColor(0xf0f0f0);
+            root.renderer.setPixelRatio(window.devicePixelRatio);
+            root.renderer.setSize(window.innerWidth, window.innerHeight);
+            root.renderer.sortObjects = false;
 
-            $("#container").append(world.renderer.domElement);
+            root.container.append(root.renderer.domElement);
+        }
 
+        function addUIEnvironment(root){
+            root.scene = new THREE.Scene();
+
+            // lights
+            root.scene.add(new THREE.AmbientLight(0xeeeeee, 0.1));
+
+            var light = new THREE.DirectionalLight(0xffffff, 0.3);
+            light.position.set(1, 1, 1).normalize();
+            root.scene.add(light);
+
+            //addPointer(0,10,-10);
+
+            light = new THREE.PointLight(0xffffff, 0.7, 100);
+            light.position.set(0, 10, -10);
+            root.scene.add(light);
+
+            // axes
+            //var origin = new THREE.Vector3(0, 0, 0);
+            //var axes = buildAxes(origin, 100);
+            //root.scene.add(axes);
+
+            // camera
+            root.camera = new THREE.PerspectiveCamera(70, 300/300, 0.1, 100);
+
+            // renderer
+            root.renderer = new THREE.WebGLRenderer();
+            root.renderer.setClearColor(0xf0f0f0);
+            root.renderer.setPixelRatio(window.devicePixelRatio);
+            root.renderer.setSize(window.innerWidth, window.innerHeight);
+            root.renderer.sortObjects = false;
+
+            root.container.append(root.renderer.domElement);
+        }
+
+        function setupScene(){
             window.addEventListener('resize', onWindowResize, false);
+
+            world.container = $("#container");
+            addEnvironment(world);
+
+            ui.container = $("#ui-container");
+            addUIEnvironment(ui);
+            ui.renderer.setSize(300,300);
 
             addIR(function (mesh) {
                 irSensor = mesh;
-                //mesh.position.set(5,5,5);
-                //world.scene.add(mesh);
                 allLoaded();
             });
-
             addYawServo(function (mesh) {
                 Yaw_Servo = mesh;
-                //mesh.position.set(5,0,0);
-                //world.scene.add(mesh);
                 allLoaded();
             });
-
-            addRollServo(function (mesh) {
-                Roll_Servo = mesh;
-                //mesh.position.set(0,0,5);
-                //world.scene.add(mesh);
+            addPitchServo(function (mesh) {
+                Pitch_Servo = mesh;
                 allLoaded();
             });
 
@@ -261,11 +331,24 @@
             scanLine = new THREE.Line(geom, mat, THREE.LineSegments);
             world.scene.add(scanLine);
 
-            testObject = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.0, 3.0), new THREE.MeshBasicMaterial({color: 0x00FFFF}));
+
+            //geom = new THREE.BoxGeometry(3.0, 3.0, 3.0);
+            geom = new THREE.TorusGeometry(3.0,1.0,60,60,7);
+
+            mat = new THREE.MeshBasicMaterial({color: 0x00FFFF});
+
+            testObject = new THREE.Mesh(geom,mat);
+            testObject.rotation.set(0,d2r(90),0);
             testObject.position.set(8.0,0.0,4.0);
 
-            world.scene.add(testObject);
+            ui_testObject = new THREE.Mesh(geom,mat);
+            ui_testObject.rotation.set(0,d2r(90),0);
+            ui_testObject.position.set(8.0,0.0,4.0);
 
+            world.scene.add(testObject);
+            ui.scene.add(ui_testObject);
+        }
+        function setupControls(){
             $(document).keydown(function(event){
                 switch(event.key){
                     case "ArrowLeft":
@@ -286,14 +369,40 @@
                         break;
                 }
             })
+        }
+        function setupUI(){
+            //reset
+            $("#reset").click(function () {
+                for(i in scanPoints){
+                    world.scene.remove(scanPoints[i]);
+                }
+                scanPoints = [];
+                for(i in ui_scanPoints){
+                    ui.scene.remove(ui_scanPoints[i]);
+                }
+                ui_scanPoints = [];
+            });
 
+            //toggle object
+            $("#object").click(function () {
+                testObject.visible = this.checked;
+                ui_testObject.visible = this.checked;
+
+            });
+        }
+
+
+        $(document).ready(function () {
+            setupScene();
+            setupControls();
+            setupUI();
         });
         function addScanPoint(delta,theta,phi){
             var v = new THREE.Vector3(0,0,delta); // point in IR's coordinate system, positive z direction
 
             //reference
             var mat = new THREE.Matrix4();
-            mat.makeTranslation(1.0,0,0); // reference offset from IR Sensor
+            mat.makeTranslation(0,0,1.0); // reference offset from IR Sensor
             v.applyMatrix4(mat);
 
             //irSensor
@@ -318,11 +427,19 @@
             v.applyMatrix4(reference.matrix);
             v.applyMatrix4(irSensor.matrix);
             v.applyMatrix4(irSensor.wrapper.matrix);
-            v.applyMatrix4(Roll_Servo.wrapper.matrix);
+            v.applyMatrix4(Pitch_Servo.wrapper.matrix);
             v.applyMatrix4(Yaw_Servo.wrapper.matrix);
             */
 
-            addPointer(v.x, v.y, v.z);
+            var point = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xFF0000}));
+            point.position.set(v.x, v.y, v.z);
+            world.scene.add(point);
+            scanPoints.push(point);
+
+            point = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xFF0000}));
+            point.position.set(v.x, v.y, v.z);
+            ui.scene.add(point);
+
         }
 
         function mouse2vec(event) {
@@ -352,6 +469,11 @@
             var src = pos.clone();
             var dst = src.clone().add(direction.clone().multiplyScalar(10));
 
+            ui.camera.position = src;
+            ui.camera.updateMatrix();
+            ui.camera.lookAt(dst);
+            ui.camera.updateMatrixWorld();
+
             // show scan Line
             scanLine.geometry.vertices[0].copy(src);
             scanLine.geometry.vertices[1].copy(dst);
@@ -375,10 +497,13 @@
         }
 
         function render() {
-            Roll_Servo.wrapper.rotation.set(0, theta, 0);
+            Pitch_Servo.wrapper.rotation.set(0, theta, 0);
             irSensor.wrapper.rotation.set(0, 0, phi);
             scan();
             world.renderer.render(world.scene, world.camera);
+
+            ui.renderer.render(ui.scene,ui.camera);
+
         }
 
         function onWindowResize() {
@@ -396,8 +521,22 @@
     <!-- Scanner{IR Sensor-Servo} & Object-->
 </div>
 
-<div id="ui-container">
+<div id="ui">
+    <hr/>
+    Camera View <br/>
 
+    <div id="ui-container"></div>
+
+    <hr/>
+    Controls <br/>
+
+    <p>(Left,Right) : Yaw</p>
+    <p>(Up,Down) : Pitch</p>
+
+    <hr/>
+    Settings <br/>
+    <input type="checkbox" id="object" checked/>Toggle Object View<br/>
+    <button type="button" id="reset" style="margin-top:10px">Reset Scan</button><br/>
 </div>
 
 </body>
