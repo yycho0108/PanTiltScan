@@ -1,0 +1,16 @@
+fileID = fopen('calibIR.txt','r');
+formatSpec = '%f';
+A  = fscanf(fileID,formatSpec)
+t = 1 : size(A);
+plot(t, A);
+
+fileIDmeans = fopen('means.txt', 'r');
+Nums = fscanf(fileIDmeans, formatSpec)
+Means = [];
+e = 1;
+for n = 1 : 2 : length(Nums)
+    Means(e) = (Nums(n) + Nums(n+1)) / 2;
+    e = e + 1;
+end
+
+a = 1 : e;
