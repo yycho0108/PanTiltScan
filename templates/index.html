@@ -71,6 +71,7 @@
         var phi = 0;
 
 
+
         function buildCamera(scene) {
             var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
             camera.radius = 25;
@@ -98,15 +99,6 @@
                 camera.mouse = mouse2vec(event);
                 camera.rotate = (event.buttons & 4); //middle button
 
-                /*var r = new THREE.Raycaster();
-                r.setFromCamera(camera.mouse, world.camera);
-                var intersect = r.intersectObject(Yaw_Servo);
-                if(intersect.length > 0){
-
-                }
-                console.log(intersect);
-                console.log(intersect[0].point);
-                */
             });
 
 
@@ -397,7 +389,8 @@
             setupControls();
             setupUI();
         });
-        function addScanPoint(delta,theta,phi){
+
+        function calcPoint(delta,theta,phi){
             var v = new THREE.Vector3(0,0,delta); // point in IR's coordinate system, positive z direction
 
             //reference
@@ -431,16 +424,23 @@
             v.applyMatrix4(Yaw_Servo.wrapper.matrix);
             */
 
-            var point = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xFF0000}));
+			return v;
+        }
+
+		function addScanPoint(v){
+			var geom = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+			var mat = new THREE.MeshBasicMaterial({color: 0xFF0000});
+
+            var point = new THREE.Mesh(geom,mat);
             point.position.set(v.x, v.y, v.z);
             world.scene.add(point);
             scanPoints.push(point);
 
-            point = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xFF0000}));
-            point.position.set(v.x, v.y, v.z);
-            ui.scene.add(point);
-
-        }
+			point = new THREE.Mesh(geom,mat);
+			point.position.set(v.x,v.y,v.z);
+			ui.scene.add(point);
+			ui_scanPoints.push(point);
+		}
 
         function mouse2vec(event) {
             return new THREE.Vector3(
@@ -455,7 +455,7 @@
             render();
         }
 
-        function scan() {
+        function scan(mode) {
 
             var pos = new THREE.Vector3();
             pos.setFromMatrixPosition(reference.matrixWorld);
@@ -481,25 +481,42 @@
             scanLine.geometry.verticesNeedUpdate = true;
 
             // add Scan Data
+			if(mode == "s"){ //simulation
+				var r = new THREE.Raycaster(src,direction,0,20);
+				var intersect = r.intersectObject(testObject);
+				if(intersect.length > 0){
+					var v_delta = new THREE.Vector3();
+					v_delta.subVectors(src, intersect[0].point);
+					var delta = v_delta.length();
 
-            var r = new THREE.Raycaster(src,direction,0,20);
+					// artificially create delta [distance] (obtained via IR sensor reading in real life)
+					var p = calcPoint(delta, theta, phi);
+					addScanPoint(p);
+				}
+			} else{
+				scan_real();
+			}
 
-            var intersect = r.intersectObject(testObject);
-
-            if(intersect.length > 0){
-                var v_delta = new THREE.Vector3();
-                v_delta.subVectors(src, intersect[0].point);
-                var delta = v_delta.length();
-                // artificially create delta [distance] (obtained via IR sensor reading in real life)
-
-                addScanPoint(delta, theta, phi);
-            }
         }
+sim
+		function scan_real(){
+			$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+			$.getJSON($SCRIPT_ROOT+"/scan",
+					function(data){
+						delta = data.delta;
+						theta = data.theta;
+						phi = data.phi;
+
+						var p = calcPoint(delta, theta, phi);
+						addScanPoint(p);
+					});
+		}
 
         function render() {
+            scan("s");
+
             Pitch_Servo.wrapper.rotation.set(0, theta, 0);
             irSensor.wrapper.rotation.set(0, 0, phi);
-            scan();
             world.renderer.render(world.scene, world.camera);
 
             ui.renderer.render(ui.scene,ui.camera);

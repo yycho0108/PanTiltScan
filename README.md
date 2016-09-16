@@ -10,4 +10,6 @@ Currently, the master branch contains a THREE.js Simulation.
 
 [Live Demo](http://yycho0108.github.io/PanTiltScan)
 
+This branch is for realtime visualization of scanned data transmitted over the serial port.
+
 Yoonyoung Cho, Katerina Soltan, Isaac Vandor
