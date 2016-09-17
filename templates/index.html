@@ -187,41 +187,52 @@ body {
 				world.scene.add(pointer);
 			}
 
-			function allLoaded() {
-				if (irSensor != null && Yaw_Servo != null && Pitch_Servo != null) {
-					console.log("ALL LOADED !!!");
+        function relocate_servo(servo){
+            servo.rotation.set(d2r(-90),0,0);
+            servo.position.set(-0.44,-1.5,0);
+            var wrapper = new THREE.Object3D();
+            wrapper.add(servo);
+            return wrapper;
+        }
+        function allLoaded() {
+            if (irSensor != null && Yaw_Servo != null && Pitch_Servo != null) {
+                console.log("ALL LOADED !!!");
+                //var wrapper1, wrapper2;
 
-					Yaw_Servo.rotation.set(d2r(-90), 0, 0);
-					Yaw_Servo.wrapper = new THREE.Object3D(); //"pan" servo
-					Yaw_Servo.wrapper.add(Yaw_Servo);
+                Yaw_Servo = relocate_servo(Yaw_Servo);
+                Pitch_Servo = relocate_servo(Pitch_Servo);
 
-					Pitch_Servo.position.set(0.0, 0, -1.6 / 2);
-					Pitch_Servo.wrapper = new THREE.Object3D();
-					Pitch_Servo.wrapper.position.set(0.5, 1.6 + (0.78 / 2) + (0.5), 0);
-					Pitch_Servo.wrapper.add(Pitch_Servo);
+                Pitch_Servo.position.set(0.0, 0, 0.0);
+                Pitch_Servo.rotation.set(d2r(90),0,d2r(90));
+
+                wrapper1 = new THREE.Object3D();
+                wrapper1.add(Pitch_Servo);
+                wrapper1.position.set(1.0, 1.0, -0.05);
+
+                wrapper2 = new THREE.Object3D();
+                wrapper2.add(wrapper1);
+                //wrapper1.add(buildAxes(origin, 10));
+                Pitch_Servo.wrapper = wrapper2;
+
+                //irSensor.rotation.set(0.0, 0.0 , 0.0);
+                irSensor.position.set(-1.0 ,0.0, -0.5);
+                //irSensor.add(buildAxes(origin,10));
+                irSensor.wrapper = new THREE.Object3D();
+                irSensor.wrapper.add(irSensor);
+                wrapper1.add(irSensor.wrapper);
 
 
-					irSensor.rotation.set(0.0, d2r(90), 0.0);
-					irSensor.position.set(1.5, 0.0, 0.0);
-					irSensor.wrapper = new THREE.Object3D();
-					irSensor.wrapper.add(irSensor);
+                reference = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0x000000}));
+                reference.position.set(0.0, 0.0, 0.8);
+                irSensor.add(reference);
 
-					reference = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0x000000}));
-					reference.position.set(0.0, 0.0, 1.0);
-					irSensor.add(reference);
+                Yaw_Servo.add(Pitch_Servo.wrapper);
+                world.scene.add(Yaw_Servo);
 
-					Pitch_Servo.wrapper.add(irSensor.wrapper);
-
-					Yaw_Servo.wrapper.add(Pitch_Servo.wrapper);
-
-					//world.scene.add(irSensor);
-					//world.scene.add(Pitch_Servo);
-					world.scene.add(Yaw_Servo.wrapper);
-
-					//start
-					animate();
-				}
-			}
+                //start
+                animate();
+            }
+        }
 
 			function addEnvironment(root){
 				root.scene = new THREE.Scene();
@@ -345,7 +356,7 @@ body {
 			}
 			function setupControls(){
 				$(document).keydown(function(event){
-					var offset = d2r(0.5);
+					var offset = d2r(1.0);
 					switch(event.key){
 						case "ArrowLeft":
 							event.preventDefault();
@@ -403,31 +414,30 @@ body {
 			});
 
 			function calcPoint(delta,theta,phi){
-				var v = new THREE.Vector3(0,0,delta); // point in IR's coordinate system, positive z direction
+            var v = new THREE.Vector3(0,0,delta); // point in IR's coordinate system, positive z direction
 
-				//reference
-				var mat = new THREE.Matrix4();
-				mat.makeTranslation(0,0,1.0); // reference offset from IR Sensor
-				v.applyMatrix4(mat);
+            //reference
 
-				//irSensor
-				mat.makeRotationY(d2r(90)); // (reorienting CAD (probably unnecessary in real model)
-				v.applyMatrix4(mat);
-				mat.makeTranslation(1.5,0,0); //IR Sensor offset from Roll Pivot
-				v.applyMatrix4(mat);
+            var mat = new THREE.Matrix4();
+            mat.makeTranslation(0,0,0.8); // reference offset from IR Sensor
+            v.applyMatrix4(mat);
 
-				//ir Wrapper
-				mat.makeRotationZ(phi); // Roll Angle
-				v.applyMatrix4(mat);
+            //irSensor
+            //v.applyMatrix4(mat);
+            mat.makeTranslation(-1.0,0,-0.5); //IR Sensor offset from Wrapper
+            v.applyMatrix4(mat);
 
-				//Roll Servo
-				mat.makeRotationY(theta); // Yaw Angle
-				v.applyMatrix4(mat);
+            //ir Wrapper
+            mat.makeRotationX(-phi); // Pitch Angle
+            v.applyMatrix4(mat);
 
-				mat.makeTranslation(0.5, 1.6 + (0.78 / 2) + (0.5), 0); // Roll Pivot offset from Yaw Pivot
-				v.applyMatrix4(mat); //this part is actually unnecessary unless we're doing localization, in which global coordinates really matter
+            //wrapper1
+            mat.makeTranslation(1.0, 1.0, -0.05);
+            v.applyMatrix4(mat);
 
-				//equivalently,
+            //wrapper2
+            mat.makeRotationY(theta); // Yaw Angle
+            v.applyMatrix4(mat);				//equivalently,
 				/*
 				   v.applyMatrix4(reference.matrix);
 				   v.applyMatrix4(irSensor.matrix);
@@ -473,9 +483,9 @@ body {
 				pos.setFromMatrixPosition(reference.matrixWorld);
 
 				var direction = new THREE.Vector3(
-						Math.cos(phi) * Math.cos(-theta),
+						Math.cos(phi) * Math.sin(theta),
 						Math.sin(phi),
-						Math.cos(phi) * Math.sin(-theta)
+						Math.cos(phi) * Math.cos(theta)
 						);
 
 				var src = pos.clone();
@@ -528,12 +538,12 @@ body {
 			}
 
 			function render() {
-				scan("r"); // scan_real()
+				scan("r"); // "r" == real or "s" == simulation
 
 				Pitch_Servo.wrapper.rotation.set(0, theta, 0);
-				irSensor.wrapper.rotation.set(0, 0, phi);
-				world.renderer.render(world.scene, world.camera);
+				irSensor.wrapper.rotation.set(-phi, 0, 0);
 
+				world.renderer.render(world.scene, world.camera);
 				ui.renderer.render(ui.scene,ui.camera);
 
 			}

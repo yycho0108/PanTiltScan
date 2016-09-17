@@ -31,12 +31,11 @@ def index():
 def scan():
     global delta, theta, phi
     theta, phi = float(request.form["theta"]), float(request.form["phi"])
-    print "theta : {}, phi : {}".format(theta,phi)
+    #print "theta : {}, phi : {}".format(theta,phi)
 
     return jsonify(delta=delta) # return scanned distance
 def limit(x):
     x = int(x)
-    print x
     if x < 0:
         return 0
     elif x > 180:
@@ -49,14 +48,13 @@ def fetchData():
     with serial.Serial(port='/dev/ttyUSB0',baudrate=9600) as ser:
         while ser.isOpen():
             try:
+                # 80,80 (deg) are set to compensate for angle offsets from model
                 s = bytearray([limit(r2d(theta) + 80), limit(r2d(phi) + 80)])
-                print 's[0], ',int(s[0])
                 ser.write(s)
                 tmp = ser.readline() 
-                print "tmp : ", tmp
+                #print "tmp : ", tmp
                 tmp = float(tmp) # temporary delta
                 delta = calibrate(tmp) # fetch delta from arduino
-                #print tmp, '-->', delta
             except Exception as e:
                 print e
                 pass
@@ -66,5 +64,4 @@ if __name__ == "__main__":
     serial_reader = threading.Thread(target = fetchData);
     serial_reader.setDaemon(True);
     serial_reader.start();
-
     app.run(host='0.0.0.0', debug=False)
