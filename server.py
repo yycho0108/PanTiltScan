@@ -1,12 +1,17 @@
 #!/usr/bin/python
 
-from flask import Flask, render_template, Response, jsonify
+from flask import Flask, render_template, Response, request, jsonify
 import serial
 import threading
+from calib import calibrate
+import logging
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__,static_url_path='')
 
-PI = 3.141592
+PI = 3.141593
 
 delta = 0.
 theta = 0. 
@@ -22,23 +27,39 @@ def r2d(r):
 def index():
     return render_template('index.html')
 
-@app.route('/scan')
+@app.route('/scan',methods=['POST'])
 def scan():
     global delta, theta, phi
-    return jsonify(delta=delta,theta=d2r(theta),phi=d2r(phi))
+    theta, phi = float(request.form["theta"]), float(request.form["phi"])
+
+    if theta < 0:
+        theta += 2 * PI # sanitize
+
+    if phi < 0:
+        phi += 2 * PI # sanitize
+
+    print "theta : {}, phi : {}".format(theta,phi)
+
+    return jsonify(delta=delta) # return scanned distance
+
+def r2d(r):
+    return int(r * 180 / 3.141592)
 
 def fetchData():
     global delta, theta, phi
-    with serial.Serial(port='/dev/ttyACM0',baudrate=9600) as ser:
-        data = [0.0,0.0,0.0]
+    with serial.Serial(port='/dev/ttyUSB0',baudrate=9600) as ser:
         while ser.isOpen():
             try:
-                tmp = [float(d) for d in str(ser.readline()).split(',')]
-                if len(tmp) == 3:
-                    data = tmp
-            except:
+                s = bytearray([int(r2d(theta)), int(r2d(phi))])
+                ser.write(s)
+                tmp = ser.readline() 
+                print "tmp : ", tmp
+                tmp = float(tmp) # temporary delta
+                delta = calibrate(tmp) # fetch delta from arduino
+                #print tmp, '-->', delta
+            except Exception as e:
+                print e
                 pass
-            delta, theta, phi = data[0], data[1], data[2] 
 
 if __name__ == "__main__":
 
