@@ -341,7 +341,7 @@ body {
 				ui.scene.add(ui_testObject);
 			}
 			function rangecheck(val){
-				return (0 < val && val < d2r(180));
+				return (d2r(-80) < val && val < d2r(100));
 			}
 			function setupControls(){
 				$(document).keydown(function(event){

@@ -12,17 +12,17 @@ log.setLevel(logging.ERROR)
 app = Flask(__name__,static_url_path='')
 
 PI = 3.141593
-
-delta = 0.
-theta = 0. 
-phi = 0.
-
 def d2r(d):
     return d * PI / 180
-
 def r2d(r):
     return r * 180 / PI
 
+
+delta = 0.
+theta = d2r(0.) 
+phi = 0.
+
+# theta == 0 --> pos == 84
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -31,26 +31,26 @@ def index():
 def scan():
     global delta, theta, phi
     theta, phi = float(request.form["theta"]), float(request.form["phi"])
-
-    if theta < 0:
-        theta += 2 * PI # sanitize
-
-    if phi < 0:
-        phi += 2 * PI # sanitize
-
     print "theta : {}, phi : {}".format(theta,phi)
 
     return jsonify(delta=delta) # return scanned distance
-
-def r2d(r):
-    return int(r * 180 / 3.141592)
+def limit(x):
+    x = int(x)
+    print x
+    if x < 0:
+        return 0
+    elif x > 180:
+        return 180
+    else:
+        return x
 
 def fetchData():
     global delta, theta, phi
     with serial.Serial(port='/dev/ttyUSB0',baudrate=9600) as ser:
         while ser.isOpen():
             try:
-                s = bytearray([int(r2d(theta)), int(r2d(phi))])
+                s = bytearray([limit(r2d(theta) + 80), limit(r2d(phi) + 80)])
+                print 's[0], ',int(s[0])
                 ser.write(s)
                 tmp = ser.readline() 
                 print "tmp : ", tmp
