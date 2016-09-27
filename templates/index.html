@@ -35,7 +35,7 @@ body {
 		<script src="STLLoader.js"></script>
 
 		<script src="axis.js"></script>
-
+		
 		<script>
 			var world = {
 				container : null,
@@ -71,10 +71,10 @@ body {
 			var phi = 0.;
 			var automaticScan = false;
 			var startedAutomaticScan = false; // used to determine when automatic scan started and set the variables to start settings.
-			var MIN_ANGLE = -80;
-			var MAX_ANGLE = 100;
+			var MIN_ANGLE = d2r(-10);
+			var MAX_ANGLE = d2r(100);
 			var offset = d2r(1.0);
-
+			var dir = 1; // upward, downwards would be -1
 			function buildCamera(scene) {
 				var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
 				camera.radius = 25;
@@ -355,10 +355,11 @@ body {
 				ui.scene.add(ui_testObject);
 			}
 			function rangecheck(val){
-				return (d2r(MIN_ANGLE) < val && val < d2r(MAX_ANGLE));
+				return (MIN_ANGLE < val && val < MAX_ANGLE);
 			}
 			function setupControls(){
 				$(document).keydown(function(event){
+					automaticScan = false;
 					switch(event.key){
 						case "ArrowLeft":
 							event.preventDefault();
@@ -456,9 +457,15 @@ body {
 				return v;
 			}
 
-			function addScanPoint(v){
+			function addScanPoint(v, delta){
 				var geom = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-				var mat = new THREE.MeshBasicMaterial({color: 0xFF0000});
+				console.log("Delta", delta);
+
+				var normalizedDelta = Math.abs((delta - 8) / (30 - 8));
+				
+				var colorHSL = new THREE.Color();
+				colorHSL.setHSL(1 - normalizedDelta, 1 - normalizedDelta, 0.5);
+				var mat = new THREE.MeshBasicMaterial({color: colorHSL});
 
 				var point = new THREE.Mesh(geom,mat);
 				point.position.set(v.x, v.y, v.z);
@@ -520,7 +527,7 @@ body {
 
 						// artificially create delta [distance] (obtained via IR sensor reading in real life)
 						var p = calcPoint(delta, theta, phi);
-						addScanPoint(p);
+						addScanPoint(p, delta);
 					}
 				} else{
 					scan_real();
@@ -540,7 +547,7 @@ body {
 					//console.log(data);	
 					delta = data.delta;
 					var p = calcPoint(delta, theta, phi);
-					addScanPoint(p);
+					addScanPoint(p, delta);
 				});
 			}
 
@@ -564,18 +571,31 @@ body {
 					startedAutomaticScan = false;
 				} else{
 					// looping through theta and phi: setting every possible value for phi before incrementing theta
-					if(phi == MAX_ANGLE){
-						if(theta == MAX_ANGLE){
+					if(theta <= MIN_ANGLE && dir == -1){
+						if(phi >= MAX_ANGLE){
 							// scan complete
 							automaticScan == false;
 							return;
 						}
 						// otherwise, increment theta, and return phi to start angle
-						theta += offset;
-						phi = MIN_ANGLE;
+						dir = 1; // now scan upwards
+						phi += offset;
+						theta = MIN_ANGLE;
+					}
+					else if(theta >= MAX_ANGLE && dir == 1){
+						if(phi >= MAX_ANGLE){
+							// scan complete
+							automaticScan == false;
+							return;
+						}
+						// otherwise, increment theta, and return phi to start angle
+						phi += offset;
+						dir = -1; // now scan downwards
+						theta = MAX_ANGLE;
+
 					} else{
 						// keep the theta, and move the phi
-						phi += offset;
+						theta += offset * dir;
 					}
 				}
 			}
