@@ -74,7 +74,11 @@
 
         var theta = 0;
         var phi = 0;
-
+        var MIN_ANGLE = d2r(-80);
+        var MAX_ANGLE = d2r(100);
+        var offset = d2r(2);
+        var startedAutomaticScan = false;
+        var automaticScan = false;
 
         function buildCamera(scene) {
             var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
@@ -398,6 +402,11 @@
                 ui_scanPoints = [];
             });
 
+            $("#scanObject").click(function () {
+                automaticScan = true;
+                startedAutomaticScan = true;
+            });
+
             //toggle object
             $("#object").click(function () {
                 testObject.visible = this.checked;
@@ -511,7 +520,29 @@
                 addScanPoint(delta, theta, phi);
             }
         }
-
+            function setAutomaticScan(){
+                if(startedAutomaticScan){
+                    theta = MIN_ANGLE;
+                    phi = MIN_ANGLE;
+                    startedAutomaticScan = false;
+                } else{
+                    // looping through theta and phi: setting every possible value for phi before incrementing theta
+                    console.log("theta ", theta, " phi: ", phi);
+                    if(phi >= MAX_ANGLE){
+                        if(theta >= MAX_ANGLE){
+                            // scan complete
+                            automaticScan == false;
+                            return;
+                        }
+                        // otherwise, increment theta, and return phi to start angle
+                        theta += offset;
+                        phi = MIN_ANGLE;
+                    } else{
+                        // keep the theta, and move the phi
+                        phi += offset;
+                    }
+                }
+            }
         function render() {
             if(Pitch_Servo && Pitch_Servo.wrapper && irSensor && irSensor.wrapper){
                 Pitch_Servo.wrapper.rotation.set(0, theta, 0);
@@ -519,6 +550,9 @@
 
             }
 
+            if(automaticScan){
+                setAutomaticScan();
+            }
             scan();
 
             world.renderer.render(world.scene, world.camera);
@@ -558,6 +592,7 @@
     <input type="checkbox" id="object" checked/>Toggle Object View<br/>
     <button type="button" id="reset" style="margin-top:10px">Reset Scan</button><br/>
     -->
+    <button type="button" id="scanObject" style="margin-top:10px">Scan Object</button><br/>
 </div>
 </body>
 </html>
