@@ -52,7 +52,7 @@ def fetchData():
                 s = bytearray([limit(r2d(theta) + 80), limit(r2d(phi) + 80)])
                 ser.write(s)
                 tmp = ser.readline() 
-                #print "tmp : ", tmp
+                print "tmp : ", tmp
                 tmp = float(tmp) # temporary delta
                 delta = calibrate(tmp) # fetch delta from arduino
             except Exception as e:
