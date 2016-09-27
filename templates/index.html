@@ -69,8 +69,11 @@ body {
 
 			var theta = 0.;
 			var phi = 0.;
-
-
+			var automaticScan = false;
+			var startedAutomaticScan = false; // used to determine when automatic scan started and set the variables to start settings.
+			var MIN_ANGLE = -80;
+			var MAX_ANGLE = 100;
+			var offset = d2r(1.0);
 
 			function buildCamera(scene) {
 				var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
@@ -352,11 +355,10 @@ body {
 				ui.scene.add(ui_testObject);
 			}
 			function rangecheck(val){
-				return (d2r(-80) < val && val < d2r(100));
+				return (d2r(MIN_ANGLE) < val && val < d2r(MAX_ANGLE));
 			}
 			function setupControls(){
 				$(document).keydown(function(event){
-					var offset = d2r(1.0);
 					switch(event.key){
 						case "ArrowLeft":
 							event.preventDefault();
@@ -396,6 +398,11 @@ body {
 						ui.scene.remove(ui_scanPoints[i]);
 					}
 					ui_scanPoints = [];
+				});
+				
+				$("#scanObject").click(function () {
+					automaticScan = true;
+					startedAutomaticScan = true;
 				});
 
 				//toggle object
@@ -518,8 +525,8 @@ body {
 				} else{
 					scan_real();
 				}
-
 			}
+
 			function scan_real(){
 				$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
 				$.post({
@@ -529,7 +536,7 @@ body {
 						theta : theta,
 						phi : phi
 					}
-				},function(data){
+				}, function(data){
 					//console.log(data);	
 					delta = data.delta;
 					var p = calcPoint(delta, theta, phi);
@@ -539,13 +546,38 @@ body {
 
 			function render() {
 				scan("r"); // "r" == real or "s" == simulation
-
+				if(automaticScan){
+					setAutomaticScan();
+				}
 				Pitch_Servo.wrapper.rotation.set(0, theta, 0);
 				irSensor.wrapper.rotation.set(-phi, 0, 0);
 
 				world.renderer.render(world.scene, world.camera);
 				ui.renderer.render(ui.scene,ui.camera);
 
+			}
+
+			function setAutomaticScan(){
+				if(startedAutomaticScan){
+					theta = MIN_ANGLE;
+					phi = MIN_ANGLE;
+					startedAutomaticScan = false;
+				} else{
+					// looping through theta and phi: setting every possible value for phi before incrementing theta
+					if(phi == MAX_ANGLE){
+						if(theta == MAX_ANGLE){
+							// scan complete
+							automaticScan == false;
+							return;
+						}
+						// otherwise, increment theta, and return phi to start angle
+						theta += offset;
+						phi = MIN_ANGLE;
+					} else{
+						// keep the theta, and move the phi
+						phi += offset;
+					}
+				}
 			}
 
 			function onWindowResize() {
@@ -579,6 +611,7 @@ body {
 			Settings <br/>
 			<input type="checkbox" id="object" checked/>Toggle Object View<br/>
 			<button type="button" id="reset" style="margin-top:10px">Reset Scan</button><br/>
+			<button type="button" id="scanObject" style="margin-top:10px">Scan Object</button><br/>
 		</div>
 
 	</body>
