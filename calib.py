@@ -2,12 +2,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 arr =[
-#         [2.3, 1.75],
-#         [3.3, 1.4],
-#         [4.3, 2.1],
-#         [5.3, 2.7],
-#         [6.3, 2.65],
-#         [7.3, 2.5],
+        [2.3, 1.75],
+        [3.3, 1.4],
+        [4.3, 2.1],
+        [5.3, 2.7],
+        [6.3, 2.65],
+        [7.3, 2.5],
         [8.3, 2.38],
         [9.3, 2.21],
         [10.3, 2.04],
@@ -33,11 +33,11 @@ arr =[
         ]
 
 arr2 = [
-# [9 , 3.42]    ,
-# [9.5 , 3.06]  ,
-# [10 , 2.68]   ,
-# [10.5 , 2.58] ,
-# [11 , 2.58]   ,
+[9 , 3.42]    ,
+[9.5 , 3.06]  ,
+[10 , 2.68]   ,
+[10.5 , 2.58] ,
+[11 , 2.58]   ,
 [11.5 , 2.63] ,
 [12 , 2.72]   ,
 [12.5 , 2.78] ,
@@ -101,6 +101,11 @@ p = np.polyfit(voltage,dist,4) # map voltage to distance
 calibrate = np.poly1d(p)
 
 if __name__ == "__main__":
-    plt.plot(voltage,dist)
-    plt.plot(voltage,calibrate(voltage))
+    fig = plt.figure()
+    fig.suptitle('Calibration Curve for Output Voltage of IR Sensor\n vs Distance of Object from Sensor', fontsize=16)
+    plt.xlabel('Distance', fontsize=14)
+    plt.ylabel('Output Voltage', fontsize=14)
+    plt.scatter(voltage, dist)
+    plt.plot(voltage, calibrate(voltage))
     plt.show()
+    
