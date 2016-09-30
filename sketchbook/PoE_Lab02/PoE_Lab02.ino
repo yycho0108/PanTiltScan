@@ -7,12 +7,6 @@ Servo pitch_servo;
 
 const int IR_PIN = A0;
 
-float delta=0, phi=0, theta=0;
-
-//delta in volts
-
-//phi,theta in radians
-
 
 float d2r(float d){
     return d * M_PI / 180;
@@ -21,6 +15,12 @@ float d2r(float d){
 float r2d(float r){
     return r * 180 / M_PI;   
 }
+
+float delta=0, phi=d2r(0), theta=0;
+
+//delta in volts
+
+//phi,theta in radians
 
 
 void setup() 
