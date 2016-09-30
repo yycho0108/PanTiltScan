@@ -391,6 +391,7 @@ body {
 			function setupUI(){
 				//reset
 				$("#reset").click(function () {
+					automaticScan = false;
 					for(i in scanPoints){
 						world.scene.remove(scanPoints[i]);
 					}
@@ -632,6 +633,15 @@ body {
 			<input type="checkbox" id="object" checked/>Toggle Object View<br/>
 			<button type="button" id="reset" style="margin-top:10px">Reset Scan</button><br/>
 			<button type="button" id="scanObject" style="margin-top:10px">Scan Object</button><br/>
+			<div id="angles">
+				<div id="theta_angle">
+					<form>
+  						Phi_Min (between MIN_ANGLE.toString() and MAX_ANGLE.toString()):
+  						<input type="number" name="phi_min" min=MIN_ANGLE.toString() max=MAX_ANGLE.toString()>
+					</form>
+				</div>
+
+			</div>
 		</div>
 
 	</body>
